@@ -45,9 +45,25 @@ async function performPasteByTyping() {
         // Normalize line endings and filter out tab characters
         const textToType = clipText.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\t/g, '');
         
-        // Simulate typing character by character with realistic delays
-        for (let i = 0; i < textToType.length; i++) {
-            const char = textToType[i];
+        window.isPasteByTypingActive = true;
+        
+        const stopTypingHandler = (e) => {
+            if (e.key === 'Backspace' && window.isPasteByTypingActive) {
+                console.log('[PasteByTyping] Stopping typing due to Backspace');
+                window.isPasteByTypingActive = false;
+            }
+        };
+        
+        document.addEventListener('keydown', stopTypingHandler);
+
+        try {
+            // Simulate typing character by character with realistic delays
+            for (let i = 0; i < textToType.length; i++) {
+                if (!window.isPasteByTypingActive) {
+                    break;
+                }
+                
+                const char = textToType[i];
             
             // Insert character at current cursor position
             if (activeElement.isContentEditable) {
@@ -95,6 +111,10 @@ async function performPasteByTyping() {
             }
         }
         
+        } finally {
+            document.removeEventListener('keydown', stopTypingHandler);
+        }
+
         // Dispatch change event after all typing is complete
         activeElement.dispatchEvent(new Event('change', { bubbles: true }));
         console.log('[PasteByTyping] Typing complete');

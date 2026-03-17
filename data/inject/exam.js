@@ -84,13 +84,11 @@ if (typeof window.isMac === 'undefined') {
     
     // Handle backspace during typing
     if (event.key === "Backspace" && isTyping) {
-      event.preventDefault(); // Prevent default backspace behavior
-      // Reset and start over
-      editor.setValue("");
-      editor.clearSelection(); // Clear selection
-      charIndex = 0;
-      lineIndex = 0;
-      typeNextCharacter();
+      event.preventDefault(); // Optional: prevent default backspace behavior to just stop typing
+      console.log('Stopped paste by typing due to Backspace');
+      // Stop typing action
+      isTyping = false;
+      typingInitialized = false;
       return;
     }
 
