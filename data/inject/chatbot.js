@@ -815,8 +815,7 @@ if (typeof window.isMac === 'undefined') {
             // Create header
             const header = document.createElement("div");
             header.style.cssText = `
-            padding: 20px !important;
-            border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
+            padding: 16px 20px !important;
             font-weight: 500 !important;
             display: flex !important;
             justify-content: space-between !important;
@@ -824,41 +823,46 @@ if (typeof window.isMac === 'undefined') {
             background-color: #fff !important;
             color: #333 !important;
             cursor: move !important;
-            font-size: 15px !important;
-            letter-spacing: 0.3px !important;
         `;
 
             header.innerHTML = `
-        <span style="display: flex !important; align-items: center !important; gap: 8px !important;">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-            </svg>
-            Chat
-        </span>
-        <div style="display: flex !important; gap: 12px !important; align-items: center !important;">
-            <span 
-            id="stealth-mode" 
-            role="button"
-            tabindex="0"
-            style="
-                display: inline-block !important;
-                font-size: 14px !important; 
-                cursor: pointer !important; 
-                padding: 6px 12px !important;
-                font-family: 'Poppins', sans-serif !important;
-                background: white !important;
-                border: none !important;
-                border-radius: 6px !important;
-                color: #333 !important;
-                user-select: none !important;
-                text-align: center !important;
-            "
-            >
-            Enable Stealth Mode
+        <div style="display: flex !important; flex-direction: column !important; align-items: flex-start !important; gap: 2px !important;">
+            <span style="display: flex !important; align-items: center !important; gap: 8px !important; font-size: 18px !important; font-weight: 700 !important; color: rgb(60, 84, 114) !important; opacity: 0.85 !important;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+                Chat
             </span>
-            <span id="close-chat" style="cursor: pointer !important; font-size: 20px !important; line-height: 1 !important;">×</span>
+            <span style="font-size: 12px !important; font-weight: 500 !important; color: #777 !important; margin-left: 30px !important;">
+                ${window.isMac ? 'Option+C' : 'Alt+C'} to toggle
+            </span>
+        </div>
+        <div style="display: flex !important; gap: 14px !important; align-items: center !important;">
+            <span id="clear-chat" style="cursor: pointer !important; font-size: 14px !important; font-weight: 600 !important; color: rgb(220, 53, 69) !important; padding: 4px 8px !important; transition: all 0.2s ease !important;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'">Clear</span>
+            <span id="close-chat" style="cursor: pointer !important; font-size: 22px !important; line-height: 1 !important; color: #888 !important; transition: color 0.2s ease !important; font-weight: 500 !important;" onmouseover="this.style.color='#333'" onmouseout="this.style.color='#888'">×</span>
         </div>
         `;
+
+            // Create opacity slider container (Stealth mode control)
+            const sliderContainer = document.createElement("div");
+            sliderContainer.style.cssText = `
+                width: 100%;
+                height: 2px;
+                background-color: rgba(60, 84, 114, 0.1);
+                position: relative;
+                z-index: 10;
+                display: flex;
+                align-items: center;
+            `;
+
+            const opacitySlider = document.createElement("input");
+            opacitySlider.type = "range";
+            opacitySlider.min = "15";
+            opacitySlider.max = "100";
+            opacitySlider.value = "100";
+            opacitySlider.id = "opacity-slider";
+            opacitySlider.title = "Adjust opacity / Enable Stealth Mode";
+            sliderContainer.appendChild(opacitySlider);
 
             // Create messages container
             const messagesContainer = document.createElement("div");
@@ -871,42 +875,71 @@ if (typeof window.isMac === 'undefined') {
         color: #333;
         scroll-behavior: smooth;
         white-space: pre-wrap;
-        `;
-
-            // Create input area
-            const inputArea = document.createElement("div");
-            inputArea.style.cssText = `
-        padding: 16px 20px;
-        border-top: 1px solid rgba(0, 0, 0, 0.06);
-        background-color: #fff;
         display: flex;
         flex-direction: column;
         gap: 12px;
         `;
 
+            // Create input area
+            const inputArea = document.createElement("div");
+            inputArea.style.cssText = `
+        padding: 12px 16px 16px 16px;
+        background-color: #fff;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        z-index: 10;
+        `;
+
+            // Create button container (which now acts as the pill wrapper)
+            const buttonContainer = document.createElement("div");
+            buttonContainer.style.cssText = `
+        display: flex;
+        align-items: stretch; /* Stretch children to fill height */
+        background-color: #f4f6f8;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 24px;
+        padding: 0; /* Remove all padding from container */
+        transition: all 0.2s ease;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+        gap: 0;
+        overflow: hidden; /* Ensures inner elements don't break the pill curve */
+        min-height: 44px;
+        `;
+
+            // Hover effect for the pill container
+            buttonContainer.addEventListener('mouseenter', () => {
+                buttonContainer.style.border = '1px solid rgba(60, 84, 114, 0.3)';
+                buttonContainer.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.05)';
+            });
+            buttonContainer.addEventListener('mouseleave', () => {
+                buttonContainer.style.border = '1px solid rgba(0, 0, 0, 0.08)';
+                buttonContainer.style.boxShadow = '0 2px 6px rgba(0, 0, 0, 0.02)';
+            });
+
             // Create input field with plain text only
             const inputField = document.createElement("div");
             inputField.contentEditable = "plaintext-only"; // Force plain text only
-            inputField.placeholder = "Type a message...";
+            inputField.placeholder = "Message...";
             inputField.style.cssText = `
-        width: 100%;
-        padding: 12px 16px;
-        border: 1px solid rgba(0, 0, 0, 0.1);
-        border-radius: 12px;
+        flex: 1;
+        padding: 12px 12px 12px 16px; /* Put padding on the input instead */
+        border: none;
         outline: none;
-        background-color: #fff;
-        color: #333;
-        min-height: 24px;
-        max-height: 120px;
+        background-color: transparent;
+        color: #222;
         font-family: 'Poppins', sans-serif;
         font-size: 14px;
         line-height: 1.5;
         font-weight: 400;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
-        transition: all 0.2s ease;
+        min-height: 45px; /* Minimum height for 1 line */
+        max-height: 66px; /* Max height for exactly 2 lines (14px font * 1.5 line height * 2 + 24px padding = 66px) */
         overflow-y: auto;
+        overflow-x: hidden;
         white-space: pre-wrap;
+        word-wrap: break-word; /* Ensure text breaks into new lines */
         -webkit-user-modify: read-write-plaintext-only;
+        display: block; /* Removed flex to allow proper text wrapping */
         `;
 
             // Simple paste event to ensure consistency (optional fallback)
@@ -1265,57 +1298,28 @@ if (typeof window.isMac === 'undefined') {
                 }
             });
 
-            // Create button container
-            const buttonContainer = document.createElement("div");
-            buttonContainer.style.cssText = `
-        display: flex;
-        align-items: flex-end;
-        gap: 12px;
-        `;
-
-            // Create clear button
-            const clearButton = document.createElement("button");
-            clearButton.id = "clear-chat";
-            clearButton.innerHTML = "Clear Chat";
-            clearButton.style.cssText = `
-        padding: 12px;
-        background-color: rgb(60, 84, 114);  /* Changed to match send button color */
-        color: #fff;
-        border: none;
-        border-radius: 12px;
-        cursor: pointer;
-        font-size: 14px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.2s ease;
-        flex-shrink: 0;
-        box-shadow: 0 2px 4px rgba(60, 84, 114, 0.2);  /* Updated shadow color to match */
-        font-family: 'Poppins', sans-serif;
-        `;
-
             // Create send button
             const sendButton = document.createElement("button");
-            sendButton.innerHTML = `
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="22" y1="2" x2="11" y2="13"></line>
-            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-        </svg>
-        `;
+            sendButton.innerHTML = "Send";
             sendButton.style.cssText = `
-        padding: 12px;
+        padding: 0 20px 0 16px; /* Wider padding for text */
+        margin: 0;
         background-color: rgb(60, 84, 114);
         color: #fff;
         border: none;
-        border-radius: 12px;
+        border-radius: 0; /* Let the container's overflow:hidden handle the curve */
         cursor: pointer;
-        font-size: 14px;
         display: flex;
         align-items: center;
         justify-content: center;
+        font-family: 'Poppins', sans-serif;
+        font-weight: 500;
+        font-size: 14px;
+        letter-spacing: 0.3px;
         transition: all 0.2s ease;
         flex-shrink: 0;
-        box-shadow: 0 2px 4px rgba(60, 84, 114, 0.2);
+        height: auto; /* Stretch to fill parent height */
+        box-shadow: -1px 0 3px rgba(0, 0, 0, 0.05); /* Very subtle separation */
         `;
 
             // Create resize handle
@@ -1458,7 +1462,6 @@ if (typeof window.isMac === 'undefined') {
 
             // Assemble the components
             buttonContainer.appendChild(inputField);
-            buttonContainer.appendChild(clearButton);
             buttonContainer.appendChild(sendButton);
             inputArea.appendChild(checkboxContainer);
             inputArea.appendChild(buttonContainer);
@@ -1470,6 +1473,47 @@ if (typeof window.isMac === 'undefined') {
                 /* CSS Reset for Shadow DOM */
                 * {
                     box-sizing: border-box;
+                }
+                
+                #opacity-slider {
+                    -webkit-appearance: none;
+                    width: 100%;
+                    height: 2px;
+                    background: transparent;
+                    outline: none;
+                    margin: 0;
+                    padding: 0;
+                }
+                
+                #opacity-slider::-webkit-slider-thumb {
+                    -webkit-appearance: none;
+                    appearance: none;
+                    width: 16px;
+                    height: 8px;
+                    border-radius: 4px;
+                    background: rgb(60, 84, 114);
+                    cursor: pointer;
+                    transition: transform 0.2s, background 0.2s;
+                }
+                
+                #opacity-slider::-webkit-slider-thumb:hover {
+                    transform: scale(1.2);
+                    background: rgb(80, 104, 134);
+                }
+                
+                #opacity-slider::-moz-range-thumb {
+                    width: 16px;
+                    height: 8px;
+                    border-radius: 4px;
+                    background: rgb(60, 84, 114);
+                    cursor: pointer;
+                    border: none;
+                    transition: transform 0.2s, background 0.2s;
+                }
+                
+                #opacity-slider::-moz-range-thumb:hover {
+                    transform: scale(1.2);
+                    background: rgb(80, 104, 134);
                 }
                 
                 /* Re-apply base styles needed */
@@ -1559,6 +1603,7 @@ if (typeof window.isMac === 'undefined') {
             // Assemble the components in shadow DOM
             shadowRoot.appendChild(shadowStyles);
             overlay.appendChild(header);
+            overlay.appendChild(sliderContainer);
             overlay.appendChild(messagesContainer);
             overlay.appendChild(inputArea);
             overlay.appendChild(resizeHandle);
@@ -1581,17 +1626,6 @@ if (typeof window.isMac === 'undefined') {
                 }
             });
 
-            // Add hover effect to clear button
-            clearButton.addEventListener('mouseenter', () => {
-                clearButton.style.transform = 'translateY(-1px)';
-                clearButton.style.boxShadow = '0 4px 8px rgba(244, 67, 54, 0.3)';
-            });
-
-            clearButton.addEventListener('mouseleave', () => {
-                clearButton.style.transform = 'translateY(0)';
-                clearButton.style.boxShadow = '0 2px 4px rgba(244, 67, 54, 0.2)';
-            });
-
             // Add hover effect to send button
             sendButton.addEventListener('mouseenter', () => {
                 sendButton.style.transform = 'translateY(-1px)';
@@ -1612,84 +1646,89 @@ if (typeof window.isMac === 'undefined') {
 
             // Add event listeners for stealth-mode
             // Get the initial state from storage
-            chrome.storage.local.get(['stealth'], function(result) {
+            chrome.storage.local.get(['stealth', 'stealthOpacity'], function(result) {
                 // Initialize stealth mode based on storage
                 let stealthModeEnabled = result.stealth === true;
+                let currentOpacity = result.stealthOpacity || (stealthModeEnabled ? 15 : 100);
                 
-                // First get the stealth mode button element from shadow DOM
-                const stealthModeButton = header.querySelector("#stealth-mode");
-                
-                // Update button text on initialization
-                if (stealthModeButton) {
-                    stealthModeButton.innerText = stealthModeEnabled ? 
-                        "Disable Stealth Mode" : "Enable Stealth Mode";
+                const slider = shadowRoot.querySelector("#opacity-slider");
+                if (slider) {
+                    slider.value = stealthModeEnabled ? currentOpacity : 100;
                     
-                    // Add event listener for stealth mode toggle
-                    stealthModeButton.addEventListener("click", () => {
-                        const chatButton = getChatButton();
-                        const closeIcon = header.querySelector("#close-chat");
-
-                        // Toggle stealth mode state
-                        stealthModeEnabled = !stealthModeEnabled;
-
-                        if (stealthModeEnabled) {
-                            overlay.style.opacity = "0.15"; // Set lower opacity
+                    if (stealthModeEnabled) {
+                        overlay.style.opacity = currentOpacity / 100;
+                    } else {
+                        overlay.style.opacity = "1";
+                    }
+                    
+                    slider.addEventListener("input", (e) => {
+                        const val = parseInt(e.target.value);
+                        overlay.style.opacity = val / 100;
+                    });
+                    
+                    slider.addEventListener("change", (e) => {
+                        const val = parseInt(e.target.value);
+                        const isStealth = val < 100;
+                        
+                        // Only send notification if stealth mode STATE changed
+                        if (isStealth !== stealthModeEnabled) {
+                            stealthModeEnabled = isStealth;
+                            const chatButton = getChatButton();
                             if (chatButton) {
-                                chatButton.style.opacity = "0"; // Hide with opacity instead of display none
-                                chatButton.style.pointerEvents = "auto"; // Keep pointer events active
+                                chatButton.style.opacity = isStealth ? "0" : "1";
                             }
-                            if (closeIcon) closeIcon.style.display = "block"; // Ensure close icon is visible
-                            stealthModeButton.innerText = "Disable Stealth Mode"; // Update button text
                             
-                            // Show toast notification for stealth mode enabled
-                            chrome.runtime.sendMessage({
-                                action: 'showStealthToast',
-                                message: `Hover over the area where the chat icon is located \nor press ${window.isMac ? 'Option+C' : 'Alt+C'} to access [Chatbot opacity reduced]`,
-                                stealthEnabled: true
-                            });
-                        } else {
-                            overlay.style.opacity = "1"; // Reset opacity
-                            if (chatButton) {
-                                chatButton.style.opacity = "1"; // Show chat button with full opacity
-                                chatButton.style.pointerEvents = "auto"; // Ensure pointer events are active
+                            if (isStealth) {
+                                chrome.runtime.sendMessage({
+                                    action: 'showStealthToast',
+                                    message: `Hover over the area where the chat icon is located \nor press ${window.isMac ? 'Option+C' : 'Alt+C'} to access [Chatbot opacity reduced]`,
+                                    stealthEnabled: true
+                                });
+                            } else {
+                                chrome.runtime.sendMessage({
+                                    action: 'showStealthToast',
+                                    message: 'Chat icon is now visible',
+                                    stealthEnabled: false
+                                });
                             }
-                            stealthModeButton.innerText = "Enable Stealth Mode"; // Update button text
-                            
-                            // Show toast notification for stealth mode disabled
-                            chrome.runtime.sendMessage({
-                                action: 'showStealthToast',
-                                message: 'Chat icon is now visible',
-                                stealthEnabled: false
-                            });
                         }
                         
-                        // Update storage with new stealth mode state
-                        chrome.storage.local.set({ stealth: stealthModeEnabled });
+                        chrome.storage.local.set({ 
+                            stealth: isStealth,
+                            stealthOpacity: val
+                        });
                     });
                 }
                 
                 // Listen for storage changes to update stealth mode state across all tabs
                 chrome.storage.onChanged.addListener((changes, namespace) => {
-                    if (namespace === 'local' && changes.stealth && stealthModeButton) {
-                        const newStealthMode = changes.stealth.newValue === true;
-                        stealthModeEnabled = newStealthMode;
-                        
-                        // Update button text
-                        stealthModeButton.innerText = newStealthMode ? 
-                            "Disable Stealth Mode" : "Enable Stealth Mode";
-                        
-                        // Update overlay opacity
-                        if (overlay) {
-                            overlay.style.opacity = newStealthMode ? "0.15" : "1";
+                    if (namespace === 'local' && slider) {
+                        if (changes.stealthOpacity) {
+                            currentOpacity = changes.stealthOpacity.newValue;
+                            if (stealthModeEnabled) {
+                                slider.value = currentOpacity;
+                                if (overlay) overlay.style.opacity = currentOpacity / 100;
+                            }
                         }
                         
-                        // Update chat button visibility
-                        const chatButton = getChatButton();
-                        if (chatButton) {
-                            chatButton.style.opacity = newStealthMode ? "0" : "1";
-                            chatButton.style.pointerEvents = "auto"; // Keep pointer events active in both states
+                        if (changes.stealth) {
+                            const newStealthMode = changes.stealth.newValue === true;
+                            stealthModeEnabled = newStealthMode;
                             
-                            // Icon is set via backgroundImage on child span, no innerHTML reset needed
+                            if (newStealthMode) {
+                                slider.value = currentOpacity;
+                                if (overlay) overlay.style.opacity = currentOpacity / 100;
+                            } else {
+                                slider.value = 100;
+                                if (overlay) overlay.style.opacity = "1";
+                            }
+                            
+                            // Update chat button visibility
+                            const chatButton = getChatButton();
+                            if (chatButton) {
+                                chatButton.style.opacity = newStealthMode ? "0" : "1";
+                                chatButton.style.pointerEvents = "auto";
+                            }
                         }
                     }
                 });
@@ -1760,7 +1799,7 @@ if (typeof window.isMac === 'undefined') {
                 });
             }
 
-            const clearChatButton = inputArea.querySelector("#clear-chat");
+            const clearChatButton = header.querySelector("#clear-chat");
             if (clearChatButton) {
                 clearChatButton.addEventListener("click", () => {
                     clearChatHistoryAndUI('manual');
@@ -1882,8 +1921,6 @@ if (typeof window.isMac === 'undefined') {
                 }
             });
             
-            addNotificationMessage(`${window.isMac ? 'Option+C' : 'Alt+C'} to toggle`);
-
             return overlay;
         }
 
@@ -1895,15 +1932,18 @@ if (typeof window.isMac === 'undefined') {
             const messageDiv = document.createElement("div");
             messageDiv.textContent = message;
             messageDiv.style.cssText = `
-                margin: 10px 0;
-                padding: 10px;
-                background-color: #eef;
-                border-radius: 8px;
-                color: #333;
-                font-size: 12px;
+                margin: 12px auto;
+                padding: 6px 12px;
+                background-color: rgba(60, 84, 114, 0.08);
+                border-radius: 12px;
+                color: rgb(60, 84, 114);
+                font-size: 11px;
                 text-align: center;
-                border: 1px solid #dde;
                 font-family: 'Poppins', sans-serif;
+                font-weight: 500;
+                letter-spacing: 0.2px;
+                width: fit-content;
+                box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
             `;
             messagesContainer.appendChild(messageDiv);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
@@ -2396,23 +2436,29 @@ if (typeof window.isMac === 'undefined') {
             // Create a new message container
             const messageContainer = document.createElement("div");
             messageContainer.style.cssText = `
-                margin-bottom: 10px;
-                padding: 10px;
-                border-radius: 8px;
-                max-width: 90%;
+                margin-bottom: 12px;
+                padding: 12px 16px;
+                border-radius: 16px;
+                max-width: 85%;
+                width: fit-content;
                 word-wrap: break-word;
+                font-size: 14px;
+                line-height: 1.5;
+                box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
             `;
         
             // Style the message differently based on the role (user or assistant)
             if (role === "user") {
-                messageContainer.style.backgroundColor = "#dcf8c6";  // Light green for user messages
+                messageContainer.style.backgroundColor = "rgb(60, 84, 114)";  // User messages use blue
+                messageContainer.style.color = "#ffffff";
                 messageContainer.style.alignSelf = "flex-end";
-                messageContainer.style.paddingLeft = "10px";
+                messageContainer.style.borderBottomRightRadius = "4px";
             } else {
-                messageContainer.style.backgroundColor = "#f1f1f1";  // Light gray for assistant messages
+                messageContainer.style.backgroundColor = "#ffffff";  // Assistant messages use white/subtle grey
+                messageContainer.style.color = "#333333";
                 messageContainer.style.alignSelf = "flex-start";
-                messageContainer.style.border = "1px solid #ddd";
-                messageContainer.style.paddingLeft = "10px";
+                messageContainer.style.border = "1px solid #eaeaea";
+                messageContainer.style.borderBottomLeftRadius = "4px";
             }
             
             // Add the message to the chat
@@ -2848,12 +2894,6 @@ if (typeof window.isMac === 'undefined') {
                     // Set overlay opacity based on stealth mode
                     if (stealthModeEnabled && overlay) {
                         overlay.style.opacity = "0.15";
-                        
-                        // Update stealth mode button text
-                        const stealthModeButton = document.getElementById("stealth-mode");
-                        if (stealthModeButton) {
-                            stealthModeButton.innerText = "Disable Stealth Mode";
-                        }
                     }
                 } catch (error) {
                     console.error('Error creating chat overlay:', error);
@@ -2889,13 +2929,6 @@ if (typeof window.isMac === 'undefined') {
                     const overlay = document.getElementById("chat-overlay");
                     if (overlay) {
                         overlay.style.opacity = newStealthMode ? "0.15" : "1";
-                        
-                        // Update stealth mode button text if it exists
-                        const stealthModeButton = document.getElementById("stealth-mode");
-                        if (stealthModeButton) {
-                            stealthModeButton.innerText = newStealthMode ? 
-                                "Disable Stealth Mode" : "Enable Stealth Mode";
-                        }
                     }
                 }
             }
