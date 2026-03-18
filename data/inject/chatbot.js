@@ -423,6 +423,7 @@ if (typeof window.isMac === 'undefined') {
         let isDragging = false;
         let isResizing = false;
         let markdownConverter = null; // Will be initialized when showdown loads
+        let currentStreamingDiv = null; // Tracks the current assistant message being streamed
         let chatAboutQuestionEnabled = false; // Toggle for chat about question feature
         let extractedQuestion = null; // Store extracted question
 
@@ -2237,34 +2238,8 @@ if (typeof window.isMac === 'undefined') {
             return 'javascript';
         }
 
-        // Add message to chat
-        function addMessageToChat(message, role) {
-            // Get the chat messages container
-            const chatMessagesContainer = getShadowElement("chat-messages");
-            if (!chatMessagesContainer) return;
-            
-            // Create a new message container
-            const messageContainer = document.createElement("div");
-            messageContainer.style.cssText = `
-                margin-bottom: 10px;
-                padding: 10px;
-                border-radius: 8px;
-                max-width: 90%;
-                word-wrap: break-word;
-            `;
-        
-            // Style the message differently based on the role (user or assistant)
-            if (role === "user") {
-                messageContainer.style.backgroundColor = "#dcf8c6";  // Light green for user messages
-                messageContainer.style.alignSelf = "flex-end";
-                messageContainer.style.paddingLeft = "10px";
-            } else {
-                messageContainer.style.backgroundColor = "#f1f1f1";  // Light gray for assistant messages
-                messageContainer.style.alignSelf = "flex-start";
-                messageContainer.style.border = "1px solid #ddd";
-                messageContainer.style.paddingLeft = "10px";
-            }
-        
+        // Render content (for initial or streaming updates)
+        function renderChatContent(messageContainer, content) {
             try {
                 // Convert markdown to HTML using showdown library
                 if (typeof showdown !== 'undefined') {
@@ -2272,9 +2247,10 @@ if (typeof window.isMac === 'undefined') {
                     if (!markdownConverter) {
                         markdownConverter = new showdown.Converter();
                     }
-                    const htmlContent = markdownConverter.makeHtml(message);
+                    const htmlContent = markdownConverter.makeHtml(content);
                     
-                    // Create content container and parse markdown
+                    // Clear and set new content
+                    messageContainer.innerHTML = "";
                     const contentContainer = document.createElement("div");
                     contentContainer.innerHTML = htmlContent;
                     
@@ -2402,17 +2378,53 @@ if (typeof window.isMac === 'undefined') {
                     messageContainer.appendChild(contentContainer);
                 } else {
                     // Fallback for when showdown is not available
-                    messageContainer.textContent = message;
+                    messageContainer.textContent = content;
                 }
             } catch (error) {
-                console.error('Error rendering markdown:', error);
+                console.error('Error rendering chat content:', error);
                 // Fallback to plain text
-                messageContainer.textContent = message;
+                messageContainer.textContent = content;
+            }
+        }
+
+        // Add message to chat
+        function addMessageToChat(message, role) {
+            // Get the chat messages container
+            const chatMessagesContainer = getShadowElement("chat-messages");
+            if (!chatMessagesContainer) return;
+            
+            // Create a new message container
+            const messageContainer = document.createElement("div");
+            messageContainer.style.cssText = `
+                margin-bottom: 10px;
+                padding: 10px;
+                border-radius: 8px;
+                max-width: 90%;
+                word-wrap: break-word;
+            `;
+        
+            // Style the message differently based on the role (user or assistant)
+            if (role === "user") {
+                messageContainer.style.backgroundColor = "#dcf8c6";  // Light green for user messages
+                messageContainer.style.alignSelf = "flex-end";
+                messageContainer.style.paddingLeft = "10px";
+            } else {
+                messageContainer.style.backgroundColor = "#f1f1f1";  // Light gray for assistant messages
+                messageContainer.style.alignSelf = "flex-start";
+                messageContainer.style.border = "1px solid #ddd";
+                messageContainer.style.paddingLeft = "10px";
             }
             
-            // Add the message to the chat and scroll to bottom
+            // Add the message to the chat
             chatMessagesContainer.appendChild(messageContainer);
+            
+            // Render initial content
+            renderChatContent(messageContainer, message);
+            
+            // Scroll to bottom
             chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
+            
+            return messageContainer;
         }
 
         // Function to clear error state and remove error messages from chat history
@@ -2894,7 +2906,8 @@ if (typeof window.isMac === 'undefined') {
             if (message.action === "updateChatHistory") {
                 const {
                     role,
-                    content
+                    content,
+                    isStreaming
                 } = message;
                 
                 // First remove loading indicator if it exists
@@ -2908,17 +2921,42 @@ if (typeof window.isMac === 'undefined') {
                     // Determine if this is a rate limit error
                     const isRateLimitError = content.includes("limit") || content.includes("exceeded") || content.includes("tomorrow");
                     addErrorMessageToChat(content, isRateLimitError);
-                } else {
+                } else if (role === "assistant") {
                     // Clear any existing error state on successful response
                     clearErrorState();
                     
-                    // Add to chat history for normal responses
-                    chatHistory.push({
-                        role: role,
-                        content: content
-                    });
-                    
-                    // Add the new message
+                    if (isStreaming) {
+                        if (!currentStreamingDiv) {
+                            // Create a new assistant message container for streaming
+                            currentStreamingDiv = addMessageToChat("", "assistant");
+                        }
+                        // Update the content incrementally
+                        renderChatContent(currentStreamingDiv, content);
+                        
+                        // Scroll to bottom during streaming
+                        const chatMessagesContainer = getShadowElement("chat-messages");
+                        if (chatMessagesContainer) {
+                            chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
+                        }
+                    } else {
+                        // Stream finished or single response
+                        if (currentStreamingDiv) {
+                            // Final update for existing stream
+                            renderChatContent(currentStreamingDiv, content);
+                            currentStreamingDiv = null;
+                        } else {
+                            // Non-streaming assistant response
+                            addMessageToChat(content, "assistant");
+                        }
+                        
+                        // Add to local chat history for conversation context
+                        chatHistory.push({
+                            role: "assistant",
+                            content: content
+                        });
+                    }
+                } else {
+                    // Handle other roles (like 'user' echo from server, though usually local)
                     addMessageToChat(content, role);
                 }
             }
