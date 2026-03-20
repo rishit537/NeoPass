@@ -986,7 +986,7 @@ function handleQueryResponse(response, tabId, isMCQ = false) {
     }
 }
 
-function handleQueryResponseForIamNeoExamly(response, tabId, isMCQ = false, isHackerRank = false, isMultipleChoice = false) {
+function handleQueryResponseForIamNeoExamly(response, tabId, isMCQ = false, isHackerRank = false, isMultipleChoice = false, isTyped = false) {
     if (response && typeof response === 'string') {
         // Success case - response is the actual text
         if (isMCQ) {
@@ -997,7 +997,52 @@ function handleQueryResponseForIamNeoExamly(response, tabId, isMCQ = false, isHa
                 isMultipleChoice: isMultipleChoice
             });
         } else {
-            copyToClipboard(response);
+            // Clean code block markers before injecting
+            const cleanedCode = response.trim()
+                .replace(/^```[a-zA-Z0-9]*\s*\n?/, '')
+                .replace(/\n?```\s*$/, '');
+
+            // Copy to clipboard as fallback
+            copyToClipboard(cleanedCode);
+
+            if (isTyped) {
+                // Typed mode: call _neopassStartTyping to type character-by-character
+                chrome.scripting.executeScript({
+                    target: { tabId: tabId },
+                    func: function(code) {
+                        console.log('[INJECTED] Calling _neopassStartTyping, code length:', code.length);
+                        if (typeof window._neopassStartTyping === 'function') {
+                            window._neopassStartTyping(code);
+                        } else {
+                            console.error('[INJECTED] _neopassStartTyping not found on window');
+                        }
+                    },
+                    args: [cleanedCode],
+                    world: 'MAIN'
+                }).catch(function(err) {
+                    console.error('[worker.js] executeScript (typed) failed:', err);
+                });
+            } else {
+                // Instant mode: inject directly into all Ace editors
+                chrome.scripting.executeScript({
+                    target: { tabId: tabId },
+                    func: function(code) {
+                        var editors = document.querySelectorAll('.ace_editor');
+                        editors.forEach(function(el) {
+                            try {
+                                var ed = ace.edit(el);
+                                ed.setValue(code);
+                                ed.clearSelection();
+                                ed.navigateFileEnd();
+                            } catch(e) {}
+                        });
+                    },
+                    args: [cleanedCode],
+                    world: 'MAIN'
+                }).catch(function(err) {
+                    console.error('[worker.js] executeScript failed:', err);
+                });
+            }
         }
     } else if (response && response.error) {
         // Error case - response contains error information
@@ -1551,7 +1596,7 @@ Respond with ONLY the ${request.programmingLanguage} code:`;
                         responseLength: response.length
                     });
                     
-                    handleQueryResponseForIamNeoExamly(response, sender.tab.id, request.isMCQ, request.isHackerRank, request.isMultipleChoice);
+                    handleQueryResponseForIamNeoExamly(response, sender.tab.id, request.isMCQ, request.isHackerRank, request.isMultipleChoice, request.isTyped);
                     sendResponse({
                         success: true,
                         response,
@@ -1559,7 +1604,7 @@ Respond with ONLY the ${request.programmingLanguage} code:`;
                     });
                 } else if (response && response.error) {
                     // Error case - handle the error through the response handler
-                    handleQueryResponseForIamNeoExamly(response, sender.tab.id, request.isMCQ, request.isHackerRank, request.isMultipleChoice);
+                    handleQueryResponseForIamNeoExamly(response, sender.tab.id, request.isMCQ, request.isHackerRank, request.isMultipleChoice, request.isTyped);
                     sendResponse({
                         error: response.error,
                         status: 'error',

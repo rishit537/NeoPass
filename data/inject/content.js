@@ -208,7 +208,7 @@ async function handleQuestionExtraction() {
 }
 
 // Function to extract coding question details
-function extractCodingQuestion() {
+function extractCodingQuestion(isTyped = false) {
     // Extract programming language
     const programmingLanguageElement = document.querySelector('span.inner-text');
     const programmingLanguage = programmingLanguageElement ? programmingLanguageElement.innerText.trim() : 'Programming language not found.';
@@ -316,31 +316,13 @@ function extractCodingQuestion() {
         inputFormat: inputFormatText,
         outputFormat: outputFormatText,
         testCases: testCasesText,
-        isCoding: true
-    }, async (response) => {
-        if (response && response.success && response.response) {
-            try {
-                // Clean the response
-                let cleanedResponse = response.response.trim()
-                    .replace(/^```[a-z]*\n/, '')
-                    .replace(/\n```$/, '');
-                
-                console.log('[AI Answer] Cleaned response length:', cleanedResponse.length);
-                
-                // Copy to clipboard first
-                await navigator.clipboard.writeText(cleanedResponse);
-                console.log('[AI Answer] Code copied to clipboard');
-                
-                // Dispatch custom event to page context (where ace is available)
-                // This will be handled by exam.js which runs in page context
-                window.dispatchEvent(new CustomEvent('NEOPASS_INSERT_CODE', {
-                    detail: { code: cleanedResponse }
-                }));
-                
-                console.log('[AI Answer] Dispatched code insertion event to page context');
-            } catch (error) {
-                console.error("Error processing AI response:", error);
-            }
+        isCoding: true,
+        isTyped: isTyped
+    }, (response) => {
+        // Injection is handled directly by worker.js via chrome.scripting.executeScript.
+        // This callback may receive null due to multiple onMessage listeners — that's expected.
+        if (response && response.error) {
+            console.error('[AI Answer] Error from background:', response.error);
         }
     });
 }    
@@ -357,9 +339,41 @@ function solveIamneoExamly(){
 document.addEventListener('keydown', (event) => {
     // Use Option (Alt) key on all platforms
     const modifierKey = event.altKey;
-    
+
     if (modifierKey && event.shiftKey && event.code === 'KeyA') {
         solveIamneoExamly();
+    }
+});
+
+// Alt+Shift+T (Ctrl+Shift+T on Mac): Typed code insertion — only handles initial AI fetch.
+// Resume/stop/continue typing is handled by exam.js locally.
+let _typedFetchQuestion = null; // track which question we already fetched for
+document.addEventListener('keydown', (event) => {
+    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    const modifierKey = isMac ? event.ctrlKey : event.altKey;
+
+    if (modifierKey && event.shiftKey && event.code === 'KeyT') {
+        console.log('[Alt+Shift+T] Key detected in content.js');
+
+        // Only fetch if this is a coding question
+        const codingQuestionElement = document.querySelector('div[aria-labelledby="input-format"]');
+        console.log('[Alt+Shift+T] codingQuestionElement found:', !!codingQuestionElement);
+        if (!codingQuestionElement) return;
+
+        // Get current question number to avoid re-fetching
+        const qEl = document.querySelector('div[class*="t-bg-primary"]');
+        const qMatch = qEl && qEl.textContent.match(/Question No : (\d+)/);
+        const qNum = qMatch ? qMatch[1] : null;
+        console.log('[Alt+Shift+T] question number:', qNum, 'already fetched for:', _typedFetchQuestion);
+
+        if (qNum && _typedFetchQuestion === qNum) {
+            console.log('[Alt+Shift+T] Already fetched for this question, skipping');
+            return;
+        }
+        _typedFetchQuestion = qNum;
+
+        console.log('[Alt+Shift+T] Calling extractCodingQuestion(true)');
+        extractCodingQuestion(true); // isTyped = true
     }
 });
 
@@ -1297,42 +1311,3 @@ document.addEventListener('keydown', (event) => {
     }
 });
 
-// Listen for code request from exam.js (Alt+Shift+T)
-window.addEventListener('NEOPASS_REQUEST_CODE_TYPED', function(event) {
-    const { programmingLanguage, question, inputFormat, outputFormat, testCases } = event.detail;
-    
-    console.log('[content.js] Received NEOPASS_REQUEST_CODE_TYPED event');
-    
-    // Send data to background.js for querying
-    chrome.runtime.sendMessage({
-        action: 'extractData',
-        programmingLanguage: programmingLanguage,
-        question: question,
-        inputFormat: inputFormat,
-        outputFormat: outputFormat,
-        testCases: testCases,
-        isCoding: true
-    }, async (response) => {
-        if (response && response.success && response.response) {
-            try {
-                // Clean the response
-                let cleanedResponse = response.response.trim()
-                    .replace(/^```[a-z]*\n/, '')
-                    .replace(/\n```$/, '');
-                
-                console.log('[content.js] Cleaned AI response length:', cleanedResponse.length);
-                
-                // Dispatch custom event back to exam.js with the typed code
-                window.dispatchEvent(new CustomEvent('NEOPASS_INSERT_CODE_TYPED', {
-                    detail: { code: cleanedResponse }
-                }));
-                
-                console.log('[content.js] Dispatched NEOPASS_INSERT_CODE_TYPED event to exam.js');
-            } catch (error) {
-                console.error("[content.js] Error processing AI response:", error);
-            }
-        } else {
-            console.error("[content.js] Failed to get AI response");
-        }
-    });
-});
