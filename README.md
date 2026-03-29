@@ -37,6 +37,10 @@ This chrome extension is for students taking tests on the **`Iamneo portal`**, *
 ### Pro Version Features
 - **`Everything in free`** : All free features are included
 - **`Managed AI by NeoPass`** : Powered by GPT-5.1 - no API key needed!
+- **`Screenshare Bypass`** : Bypass fullscreen screenshare requirements with three modes:
+  - **Share Tab/Window** — share only the current tab or window instead of the entire screen
+  - **Share Blank Screen** — share a black screen without capturing anything real
+  - **Share Frozen Screen** — capture a single frame of your screen and freeze it
 - **`NeoBrowser Access`** : Exclusive access to the NeoBrowser with built in Exam Helper
 - **`No Network Restrictions`** : Works even if AI providers are blocked on your network
 - **`Increased Rate Limits`** : Higher usage limits for intensive exam sessions

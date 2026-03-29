@@ -99,6 +99,19 @@
       ]
     },
     {
+      "js": ["data/inject/screenshare-bridge.js"],
+      "run_at": "document_start",
+      "all_frames": true,
+      "matchOriginAsFallback": true,
+      "matches": [
+        "<all_urls>",
+        "https://*.examly.io/*",
+        "https://*.vit.ac.in/*",
+        "https://app.codility.com/*"
+      ],
+      "exclude_matches": ["https://*.examly.io/result*","https://*.vit.ac.in/result"]
+    },
+    {
       "js": ["data/inject/screenshare.js"],
       "run_at": "document_start",
       "all_frames": true,
